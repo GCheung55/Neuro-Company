@@ -1,4 +1,5 @@
-var nCollection = require('Neuro/cjs/Collection'),
+var nCollection = require('Neuro/cjs/Collection').Collection,
+    Model = require('./Model').Model,
     Unit = require('Company').Unit;
 
 var Collection = exports.Collection = new Class({
@@ -7,11 +8,12 @@ var Collection = exports.Collection = new Class({
     Implements: [Unit],
 
     options: {
-        Prefix: ''
+        Prefix: '',
+        Model: Model
     },
 
     setup: function(models, options){
-        this.setPrefix(options.Prefix || this.options.Prefix);
+        this.setPrefix( (options && options.Prefix) || this.options.Prefix);
 
         this.setupUnit();
 

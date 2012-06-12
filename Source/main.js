@@ -1,4 +1,6 @@
-exports = require('Neuro').Neuro;
+exports = require('Neuro');
 exports.Observer = require('Company').Unit;
-exports.Model = require('./model');
-exports.Collection = require('./collection');
+exports.Model = require('./model').Model;
+exports.Collection = require('./collection').Collection;
+
+module.exports = exports;
