@@ -12,5 +12,9 @@
   "optionalDependencies": {},
   "engines": {
     "node": "*"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gcheung55/neuro-company.git"
   }
 }
