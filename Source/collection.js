@@ -1,15 +1,16 @@
-var nCollection = require('Neuro/cjs/Collection').Collection,
-    Model = require('./Model').Model,
-    Unit = require('Company').Unit;
+var Neuro = require('Neuro');
 
-var Collection = exports.Collection = new Class({
-    Extends: nCollection,
+var Observer = require('./observer'),
+    Mixins = require('../mixins/observer');
 
-    Implements: [Unit],
+var Collection = new Class({
+    Extends: Neuro.Collection,
+
+    Implements: [Mixins.observer],
 
     options: {
         Prefix: '',
-        Model: Model
+        Model: Neuro.Model
     },
 
     setup: function(models, options){
@@ -17,10 +18,12 @@ var Collection = exports.Collection = new Class({
 
         this.setupUnit();
 
-        Unit.decorate(this);
+        Observer.decorate(this);
 
         this.parent(models, options);
 
         return this;
     }
 });
+
+module.exports = Collection;

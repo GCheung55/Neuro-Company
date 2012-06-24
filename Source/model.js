@@ -1,10 +1,12 @@
-var nModel = require('Neuro/cjs/Model').Model,
-    Unit = require('Company').Unit;
+var Neuro = require('Neuro');
 
-var Model = exports.Model = new Class({
-    Extends: nModel,
+var Observer = require('./observer'),
+    Mixins = require('../mixins/observer');
 
-    Implements: [Unit],
+var Model = new Class({
+    Extends: Neuro.Model,
+
+    Implements: [Mixins.observer],
 
     options: {
         Prefix: ''
@@ -18,8 +20,14 @@ var Model = exports.Model = new Class({
 
         this.setupUnit();
 
-        Unit.decorate(this);
+        /**
+         * Decorating the instance so that Event methods will trigger
+         * Observer subscribe/unsubscribe/publish methods
+         */
+        Observer.decorate(this);
 
         return this;
     }
 });
+
+module.exports = Model;
