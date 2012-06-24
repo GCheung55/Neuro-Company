@@ -85,6 +85,26 @@ buster.testCase('Neuro Model', {
 
             assert.called(spy);
             assert.calledWith(spy, model, key, val);
+        },
+
+        'should automatically use the the prefix when subscribing': function(){
+            var modelSpy = this.spy(),
+                unitSpy = this.spy(),
+                model = this.mockModel,
+                unit = new Neuro.Observer();
+
+            // Subscribe with unit
+            unit.subscribe(model.getPrefix() + '.change', unitSpy);
+
+            // Subscribe with model
+            model.subscribe('change', modelSpy);
+
+            model.set(this.mockData);
+
+            assert.called(modelSpy);
+            assert.calledWith(modelSpy, model);
+            assert.called(unitSpy);
+            assert.calledWith(unitSpy, model);
         }
     }
 });
