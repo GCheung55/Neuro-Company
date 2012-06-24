@@ -15,7 +15,6 @@
         Neuro.Observer = require("6");
         Neuro.Model = require("8");
         Neuro.Collection = require("a");
-        Neuro.Unit = require("7").Unit;
         exports = module.exports = Neuro;
     },
     "1": function(require, module, exports, global) {
