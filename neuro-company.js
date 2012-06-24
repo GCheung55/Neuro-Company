@@ -11,251 +11,258 @@
     window["Neuro"] = require("0");
 })({
     "0": function(require, module, exports, global) {
-        exports = require("1");
-        exports.Observer = require("5").Unit;
-        exports.Model = require("6").Model;
-        exports.Collection = require("7").Collection;
-        module.exports = exports;
+        var Neuro = require("1");
+        Neuro.Observer = require("6");
+        Neuro.Model = require("8");
+        Neuro.Collection = require("a");
+        Neuro.Unit = require("7").Unit;
+        exports = module.exports = Neuro;
     },
     "1": function(require, module, exports, global) {
         exports.Collection = require("2").Collection;
         exports.Model = require("3").Model;
     },
     "2": function(require, module, exports, global) {
-        exports.Collection = {}.undefined;
-        with (require("3")) with (exports) (function() {
-            with (this) {
-                require : "./Model";
-                exports : Collection;
-                var Collection = new Class({
-                    Implements: [ Events, Options ],
-                    _models: [],
-                    options: {
-                        Model: Model
-                    },
-                    initialize: function(models, options) {
-                        this.setup(models, options);
-                    },
-                    setup: function(models, options) {
-                        this.setOptions(options);
-                        this._Model = this.options.Model;
-                        if (models) {
-                            this.add(models);
-                        }
-                        return this;
-                    },
-                    hasModel: function(model) {
-                        return this._models.contains(model);
-                    },
-                    _add: function(model) {
-                        model = new this._Model(model);
-                        if (!this.hasModel(model)) {
-                            this._models.push(model);
-                            this.publishAdd(model);
-                        }
-                        return this;
-                    },
-                    add: function() {
-                        var models = arguments, len = models.length, i = 0;
-                        while (len--) {
-                            this._add(models[i++]);
-                        }
-                        return this;
-                    },
-                    get: function(index) {
-                        var len = arguments.length, i = 0, results;
-                        if (len > 1) {
-                            results = [];
-                            while (len--) {
-                                results.push(this.get(arguments[i++]));
-                            }
-                            return results;
-                        }
-                        return this._models[index];
-                    },
-                    _remove: function(model) {
-                        if (model.destroy) {
-                            model.destroy();
-                        }
-                        this._models.erase(model);
-                        this.publishRemove(model);
-                        return this;
-                    },
-                    remove: function() {
-                        var models = Array.from(arguments), l = models.length, i = 0;
-                        while (l--) {
-                            this._remove(models[i++]);
-                        }
-                        return this;
-                    },
-                    empty: function() {
-                        this.remove.apply(this, this._models);
-                        this.publishEmpty();
-                        return this;
-                    },
-                    publishAdd: function(model) {
-                        this.fireEvent("add", [ this, model ]);
-                        return this;
-                    },
-                    publishRemove: function(model) {
-                        this.fireEvent("remove", [ this, model ]);
-                        return this;
-                    },
-                    publishEmpty: function() {
-                        this.fireEvent("empty", this);
-                        return this;
-                    },
-                    toJSON: function() {
-                        return this.map(function(model) {
-                            return model.toJSON();
-                        });
+        var Model = require("3").Model, Silence = require("5");
+        var Collection = exports.Collection = new Class({
+            Implements: [ Events, Options, Silence ],
+            _models: [],
+            options: {
+                Model: Model,
+                silent: false
+            },
+            initialize: function(models, options) {
+                this.setup(models, options);
+            },
+            setup: function(models, options) {
+                this.setOptions(options);
+                this._Model = this.options.Model;
+                this.silence(this.options.silent);
+                if (models) {
+                    this.add(models);
+                }
+                return this;
+            },
+            hasModel: function(model) {
+                return this._models.contains(model);
+            },
+            _add: function(model) {
+                model = new this._Model(model);
+                if (!this.hasModel(model)) {
+                    model.addEvent("destroy", this.remove.bind(this));
+                    this._models.push(model);
+                    this.signalAdd(model);
+                }
+                return this;
+            },
+            add: function() {
+                var models = Array.from(arguments).flatten(), len = models.length, i = 0;
+                while (len--) {
+                    this._add(models[i++]);
+                }
+                return this;
+            },
+            get: function(index) {
+                var len = arguments.length, i = 0, results;
+                if (len > 1) {
+                    results = [];
+                    while (len--) {
+                        results.push(this.get(arguments[i++]));
                     }
-                });
-                [ "forEach", "each", "invoke", "every", "filter", "clean", "indexOf", "map", "some", "associate", "link", "contains", "getLast", "getRandom", "flatten", "pick" ].each(function(method) {
-                    Collection.implement(method, function() {
-                        return Array[method].apply(Array, [ this._models ].append(Array.from(arguments)));
-                    });
+                    return results;
+                }
+                return this._models[index];
+            },
+            _remove: function(model) {
+                this._models.erase(model);
+                this.signalRemove(model);
+                return this;
+            },
+            remove: function() {
+                var models = Array.from(arguments).flatten(), l = models.length, i = 0;
+                while (l--) {
+                    this._remove(models[i++]);
+                }
+                return this;
+            },
+            replace: function(oldModel, newModel, signal) {
+                var index;
+                if (oldModel && newModel) {
+                    index = this.indexOf(oldModel);
+                    if (index > -1) {
+                        newModel = new this._Model(newModel);
+                        this._models.splice(index, 1, newModel);
+                        if (signal) {
+                            this.signalAdd(newModel);
+                            this.signalRemove(oldModel);
+                        }
+                    }
+                }
+                return this;
+            },
+            empty: function() {
+                this.remove.apply(this, this._models);
+                this.signalEmpty();
+                return this;
+            },
+            signalAdd: function(model) {
+                !this.isSilent() && this.fireEvent("add", [ this, model ]);
+                return this;
+            },
+            signalRemove: function(model) {
+                !this.isSilent() && this.fireEvent("remove", [ this, model ]);
+                return this;
+            },
+            signalEmpty: function() {
+                !this.isSilent() && this.fireEvent("empty", this);
+                return this;
+            },
+            toJSON: function() {
+                return this.map(function(model) {
+                    return model.toJSON();
                 });
             }
-        }).call(exports);
+        });
+        [ "forEach", "each", "invoke", "every", "filter", "clean", "indexOf", "map", "some", "associate", "link", "contains", "getLast", "getRandom", "flatten", "pick" ].each(function(method) {
+            Collection.implement(method, function() {
+                return Array.prototype[method].apply(this._models, arguments);
+            });
+        });
     },
     "3": function(require, module, exports, global) {
-        exports.Model = {}.undefined;
-        with (require("4")) with (exports) (function() {
-            with (this) {
-                require : "../lib/util/Is";
-                exports : Model;
-                var createGetter = function(type) {
-                    var isPrevious = type == "_previousData" || void 0;
-                    return function(prop) {
-                        var val = this[type][prop], accessor = this.getAccessor[prop], getter = accessor && accessor.get;
-                        return getter ? getter.call(this, isPrevious) : val;
-                    }.overloadGetter();
-                };
-                var Model = new Class({
-                    Implements: [ Events, Options ],
-                    _data: {},
-                    _changed: false,
-                    _changedProperties: {},
-                    _previousData: {},
-                    _accessors: {},
-                    options: {
-                        accessors: {}
-                    },
-                    initialize: function(data, options) {
-                        if (instanceOf(data, this.constructor)) {
-                            return data;
-                        }
-                        this.setup(data, options);
-                    },
-                    setup: function(data, options) {
-                        this.setOptions(options);
-                        this.setAccessor(Object.clone(this.options.accessors));
-                        if (data) {
-                            this._data = Object.clone(data);
-                        }
-                        return this;
-                    },
-                    _set: function(prop, val) {
-                        var old = this._data[prop], accessor = this.getAccessor(prop), setter = accessor && accessor.set;
-                        if (Is.Array(val)) {
-                            val = val.slice();
-                        } else if (Is.Object(val)) {
-                            val = Object.clone(val);
-                        }
-                        if (!Is.Equal(old, val)) {
-                            this._changed = true;
-                            this._changedProperties[prop] = val;
-                            if (setter) {
-                                setter.apply(this, arguments);
-                            } else {
-                                this._data[prop] = val;
-                            }
-                        }
-                        return this;
-                    }.overloadSetter(),
-                    set: function(prop, val) {
-                        this._setPreviousData();
-                        this._set(prop, val);
-                        this.changeProperty(this._changedProperties);
-                        this.change();
-                        this._resetChanged();
-                        return this;
-                    },
-                    unset: function(prop) {
-                        this.set(prop, void 0);
-                        return this;
-                    },
-                    get: createGetter("_data"),
-                    getData: function() {
-                        return this.clone();
-                    },
-                    _setPreviousData: function() {
-                        this._previousData = Object.clone(this._data);
-                        return this;
-                    },
-                    getPrevious: createGetter("_previousData"),
-                    getPreviousData: function() {
-                        return Object.clone(this._previousData);
-                    },
-                    _resetChanged: function() {
-                        if (this._changed) {
-                            this._changed = false;
-                            this._changedProperties = {};
-                        }
-                        return this;
-                    },
-                    change: function() {
-                        if (this._changed) {
-                            this.publishChange();
-                        }
-                        return this;
-                    },
-                    changeProperty: function(prop, val) {
-                        if (this._changed) {
-                            this.publishChangeProperty(prop, val);
-                        }
-                        return this;
-                    }.overloadSetter(),
-                    destroy: function() {
-                        this.publishDestroy();
-                        return this;
-                    },
-                    publishChange: function() {
-                        this.fireEvent("change", this);
-                        return this;
-                    },
-                    publishChangeProperty: function(prop, val) {
-                        this.fireEvent("change:" + prop, [ this, prop, val ]);
-                        return this;
-                    },
-                    publishDestroy: function() {
-                        this.fireEvent("destroy", this);
-                        return this;
-                    },
-                    toJSON: function() {
-                        return this.clone();
-                    },
-                    setAccessor: function(key, val) {
-                        this._accessors[key] = val;
-                        return this;
-                    }.overloadSetter(),
-                    getAccessor: function(key) {
-                        return this._accessors[key];
-                    }.overloadGetter(),
-                    unsetAccessor: function(key) {
-                        delete this._accessors[key];
-                        this._accessors[key] = undefined;
-                        return this;
+        var Is = require("4").Is, Silence = require("5");
+        var createGetter = function(type) {
+            var isPrevious = type == "_previousData" || void 0;
+            return function(prop) {
+                var val = this[type][prop], accessor = this.getAccessor[prop], getter = accessor && accessor.get;
+                return getter ? getter.call(this, isPrevious) : val;
+            }.overloadGetter();
+        };
+        var Model = exports.Model = new Class({
+            Implements: [ Events, Options, Silence ],
+            _data: {},
+            _changed: false,
+            _changedProperties: {},
+            _previousData: {},
+            _accessors: {},
+            options: {
+                accessors: {},
+                defaults: {},
+                silent: false
+            },
+            initialize: function(data, options) {
+                if (instanceOf(data, this.constructor)) {
+                    return data;
+                }
+                this.setup(data, options);
+            },
+            setup: function(data, options) {
+                this.setOptions(options);
+                this.setAccessor(this.options.accessors);
+                this.silence(this.options.silent);
+                if (data) {
+                    this._data = Object.merge({}, this.options.defaults, data);
+                }
+                return this;
+            },
+            _set: function(prop, val) {
+                var old = this._data[prop], accessor = this.getAccessor(prop), setter = accessor && accessor.set;
+                if (Is.Array(val)) {
+                    val = val.slice();
+                } else if (Is.Object(val)) {
+                    val = Object.clone(val);
+                }
+                if (!Is.Equal(old, val)) {
+                    this._changed = true;
+                    this._changedProperties[prop] = val;
+                    if (setter) {
+                        setter.apply(this, arguments);
+                    } else {
+                        this._data[prop] = val;
                     }
-                });
-                [ "clone", "subset", "map", "filter", "every", "some", "keys", "values", "getLength", "keyOf", "contains", "toQueryString" ].each(function(method) {
-                    Model.implement(method, function() {
-                        return Object[method].apply(Object, [ this._data ].append(Array.from(arguments)));
-                    });
-                });
+                }
+                return this;
+            }.overloadSetter(),
+            set: function(prop, val) {
+                this._setPreviousData();
+                this._set(prop, val);
+                this.changeProperty(this._changedProperties);
+                this.change();
+                this._resetChanged();
+                return this;
+            },
+            unset: function(prop) {
+                this.set(prop, void 0);
+                return this;
+            },
+            get: createGetter("_data"),
+            getData: function() {
+                return this.clone();
+            },
+            _setPreviousData: function() {
+                this._previousData = Object.clone(this._data);
+                return this;
+            },
+            getPrevious: createGetter("_previousData"),
+            getPreviousData: function() {
+                return Object.clone(this._previousData);
+            },
+            _resetChanged: function() {
+                if (this._changed) {
+                    this._changed = false;
+                    this._changedProperties = {};
+                }
+                return this;
+            },
+            change: function() {
+                if (this._changed) {
+                    this.signalChange();
+                }
+                return this;
+            },
+            changeProperty: function(prop, val) {
+                if (this._changed) {
+                    this.signalChangeProperty(prop, val);
+                }
+                return this;
+            }.overloadSetter(),
+            destroy: function() {
+                this.signalDestroy();
+                return this;
+            },
+            signalChange: function() {
+                !this.isSilent() && this.fireEvent("change", this);
+                return this;
+            },
+            signalChangeProperty: function(prop, val) {
+                !this.isSilent() && this.fireEvent("change:" + prop, [ this, prop, val ]);
+                return this;
+            },
+            signalDestroy: function() {
+                !this.isSilent() && this.fireEvent("destroy", this);
+                return this;
+            },
+            toJSON: function() {
+                return this.clone();
+            },
+            setAccessor: function(key, val) {
+                this._accessors[key] = val;
+                return this;
+            }.overloadSetter(),
+            getAccessor: function(key) {
+                return this._accessors[key];
+            }.overloadGetter(),
+            unsetAccessor: function(key) {
+                delete this._accessors[key];
+                this._accessors[key] = undefined;
+                return this;
             }
-        }).call(exports);
+        });
+        [ "clone", "subset", "map", "filter", "every", "some", "keys", "values", "getLength", "keyOf", "contains", "toQueryString" ].each(function(method) {
+            Model.implement(method, function() {
+                return Object[method].apply(Object, [ this._data ].append(Array.from(arguments)));
+            });
+        });
     },
     "4": function(require, module, exports, global) {
         (function(context) {
@@ -368,6 +375,56 @@
         })(typeof exports != "undefined" ? exports : window);
     },
     "5": function(require, module, exports, global) {
+        var Silence = new Class({
+            _silent: false,
+            silence: function(silent) {
+                this._silent = !!silent;
+                return this;
+            },
+            isSilent: function() {
+                return !!this._silent;
+            }
+        });
+        exports = module.exports = Silence;
+    },
+    "6": function(require, module, exports, global) {
+        var Unit = require("7").Unit;
+        var resolvePrefix = function(obj, key) {
+            var prefix = obj && obj.getPrefix && obj.getPrefix();
+            return (!!prefix ? prefix + "." : "") + key;
+        };
+        var Observer = new Class({
+            Extends: Unit,
+            subscribe: function(key, fn, replay, unit) {
+                if (typeof key == "object") {
+                    if (typeof fn != "function") {
+                        for (var i in key) this.subscribe(i, key[i], void 0, fn);
+                    } else {
+                        for (var i in key) this.subscribe(i, key[i], fn, replay);
+                    }
+                } else {
+                    if (typeof replay == "object") {
+                        unit = replay;
+                    }
+                    !!key && (key = resolvePrefix(unit, key));
+                    this.parent(key, fn, replay);
+                }
+                return this;
+            },
+            unsubscribe: function(key, fn, unit) {
+                if (typeof key == "object") {
+                    for (var i in key) this.unsubscribe(i, key[i], fn);
+                } else {
+                    !!key && (key = resolvePrefix(unit, key));
+                    this.parent(key, fn);
+                }
+                return this;
+            }
+        });
+        Observer.extend(Unit);
+        module.exports = Observer;
+    },
+    "7": function(require, module, exports, global) {
         (function() {
             var removeOnRegexp = /^on([A-Z])/, removeOnFn = function(_, ch) {
                 return ch.toLowerCase();
@@ -781,11 +838,12 @@
             };
         }).call(this);
     },
-    "6": function(require, module, exports, global) {
-        var nModel = require("3").Model, Unit = require("5").Unit;
-        var Model = exports.Model = new Class({
-            Extends: nModel,
-            Implements: [ Unit ],
+    "8": function(require, module, exports, global) {
+        var Neuro = require("1");
+        var Observer = require("6"), Mixins = require("9");
+        var Model = new Class({
+            Extends: Neuro.Model,
+            Implements: [ Mixins.observer ],
             options: {
                 Prefix: ""
             },
@@ -793,44 +851,44 @@
                 this.parent(data, options);
                 this.setPrefix(this.options.Prefix || String.uniqueID());
                 this.setupUnit();
-                Unit.decorate(this);
+                Observer.decorate(this);
                 return this;
             }
         });
+        module.exports = Model;
     },
-    "7": function(require, module, exports, global) {
-        var nCollection = require("2").Collection, Model = require("8").Model, Unit = require("5").Unit;
-        var Collection = exports.Collection = new Class({
-            Extends: nCollection,
-            Implements: [ Unit ],
+    "9": function(require, module, exports, global) {
+        var Observer = require("6");
+        var fn = function() {
+            var args = Array.from(arguments);
+            args.push(this);
+            this.parent.apply(this, args);
+            return this;
+        };
+        exports.observer = new Class({
+            Extends: Observer,
+            subscribe: fn,
+            unsubscribe: fn
+        });
+    },
+    a: function(require, module, exports, global) {
+        var Neuro = require("1");
+        var Observer = require("6"), Mixins = require("9");
+        var Collection = new Class({
+            Extends: Neuro.Collection,
+            Implements: [ Mixins.observer ],
             options: {
                 Prefix: "",
-                Model: Model
+                Model: Neuro.Model
             },
             setup: function(models, options) {
                 this.setPrefix(options && options.Prefix || this.options.Prefix);
                 this.setupUnit();
-                Unit.decorate(this);
+                Observer.decorate(this);
                 this.parent(models, options);
                 return this;
             }
         });
-    },
-    "8": function(require, module, exports, global) {
-        var nModel = require("3").Model, Unit = require("5").Unit;
-        var Model = exports.Model = new Class({
-            Extends: nModel,
-            Implements: [ Unit ],
-            options: {
-                Prefix: ""
-            },
-            setup: function(data, options) {
-                this.parent(data, options);
-                this.setPrefix(this.options.Prefix || String.uniqueID());
-                this.setupUnit();
-                Unit.decorate(this);
-                return this;
-            }
-        });
+        module.exports = Collection;
     }
 });
