@@ -12,7 +12,7 @@ buster.testCase('Neuro Model', {
 
                             this.set('firstName', first);
                             this.set('lastName', last);
-                            this._data[prop] = first + ' ' + last;
+                            return val;
                         }
                     },
                     get: function(isPrevious){
@@ -58,7 +58,6 @@ buster.testCase('Neuro Model', {
             model.set('age', 30);
 
             assert.called(spy);
-            assert.calledWith(spy, model);
         },
 
         'should notify subscribers of a changed data property': function(){
@@ -71,7 +70,7 @@ buster.testCase('Neuro Model', {
             model.setPrefix(this.mockPrefix).set(key, val);
 
             assert.called(spy);
-            assert.calledWith(spy, model, key, val);
+            assert.calledWith(spy, key, val);
         },
 
         'use of custom accessors should notify subscribers of changed data property': function(){
@@ -84,7 +83,7 @@ buster.testCase('Neuro Model', {
             model.setPrefix(this.mockPrefix).set(key, val);
 
             assert.called(spy);
-            assert.calledWith(spy, model, key, val);
+            assert.calledWith(spy, key, val);
         },
 
         'should automatically use the the prefix when subscribing': function(){
@@ -102,9 +101,7 @@ buster.testCase('Neuro Model', {
             model.set(this.mockData);
 
             assert.called(modelSpy);
-            assert.calledWith(modelSpy, model);
             assert.called(unitSpy);
-            assert.calledWith(unitSpy, model);
         }
     }
 });

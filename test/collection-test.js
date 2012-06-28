@@ -24,7 +24,7 @@ buster.testCase('Neuro Collection', {
             assert.equals(model.getData(), this.mockData);
 
             assert.called(spy),
-            assert.calledWith(spy, this.mockCollection, model);
+            assert.calledWith(spy, model);
         },
 
         'should notify subscribers of models removed': function(){
@@ -40,7 +40,7 @@ buster.testCase('Neuro Collection', {
             this.mockCollection.remove(model);
 
             assert.called(spy);
-            assert.calledWith(spy, this.mockCollection, model);
+            assert.calledWith(spy, model);
         },
 
         'should notify subscribers emptying Collection instance': function(){
@@ -56,7 +56,6 @@ buster.testCase('Neuro Collection', {
             this.mockCollection.empty();
 
             assert.called(spy);
-            assert.calledWith(spy, this.mockCollection);
             refute(this.mockCollection._models.length);
         },
 
@@ -77,9 +76,9 @@ buster.testCase('Neuro Collection', {
             model = collection.get(0);
 
             assert.called(collectionSpy);
-            assert.calledWith(collectionSpy, collection, model);
+            assert.calledWith(collectionSpy, model);
             assert.called(unitSpy);
-            assert.calledWith(unitSpy, collection, model);
+            assert.calledWith(unitSpy, model);
         }
     }
 });
