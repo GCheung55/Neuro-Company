@@ -1,4 +1,4 @@
-var Observer = require('../Source/observer');
+var Observer = require('../src/observer');
 
 var fn = function(){
     var args = Array.from(arguments);
