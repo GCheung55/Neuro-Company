@@ -12,25 +12,25 @@
 })({
     "0": function(require, module, exports, global) {
         var Neuro = require("1");
-        Neuro.Observer = require("7");
-        Neuro.Model = require("9");
-        Neuro.Collection = require("b");
+        Neuro.Observer = require("8").Observer;
+        Neuro.Model = require("a").Model;
+        Neuro.Collection = require("c").Collection;
         exports = module.exports = Neuro;
     },
     "1": function(require, module, exports, global) {
         var Neuro = require("2");
-        Neuro.Model = require("3");
-        Neuro.Collection = require("6");
+        Neuro.Model = require("3").Model;
+        Neuro.Collection = require("7").Collection;
         exports = module.exports = Neuro;
     },
     "2": function(require, module, exports, global) {
         var Neuro = {
-            version: "0.1.7"
+            version: "0.1.8"
         };
         exports = module.exports = Neuro;
     },
     "3": function(require, module, exports, global) {
-        var Is = require("4").Is, Silence = require("5");
+        var Is = require("4").Is, Silence = require("5").Silence, Connector = require("6").Connector;
         var createGetter = function(type) {
             var isPrevious = type == "_previousData" || void 0;
             return function(prop) {
@@ -39,7 +39,7 @@
             }.overloadGetter();
         };
         var Model = new Class({
-            Implements: [ Events, Options, Silence ],
+            Implements: [ Connector, Events, Options, Silence ],
             primaryKey: undefined,
             _data: {},
             _changed: false,
@@ -49,8 +49,7 @@
             options: {
                 primaryKey: undefined,
                 accessors: {},
-                defaults: {},
-                silent: false
+                defaults: {}
             },
             initialize: function(data, options) {
                 if (instanceOf(data, this.constructor)) {
@@ -61,10 +60,9 @@
             setup: function(data, options) {
                 this.setOptions(options);
                 this.primaryKey = this.options.primaryKey;
+                this.setAccessor(this.options.accessors);
                 this.__set(this.options.defaults);
                 this._resetChanged();
-                this.setAccessor(this.options.accessors);
-                this.silence(this.options.silent);
                 if (data) {
                     this.set(data);
                 }
@@ -134,7 +132,22 @@
             },
             get: createGetter("_data"),
             getData: function() {
-                return Object.clone(this._data);
+                var props = this.keys(), obj = {};
+                props.each(function(prop) {
+                    var val = this.get(prop);
+                    switch (typeOf(val)) {
+                      case "array":
+                        val = val.slice();
+                        break;
+                      case "object":
+                        if (!val.$constructor || val.$constructor && !instanceOf(val.$constructor, Class)) {
+                            val = Object.clone(val);
+                        }
+                        break;
+                    }
+                    obj[prop] = val;
+                }.bind(this));
+                return obj;
             },
             _setPreviousData: function() {
                 this._previousData = Object.clone(this._data);
@@ -159,7 +172,7 @@
             },
             changeProperty: function(prop, val) {
                 if (this._changed) {
-                    this.signalChangeProperty(prop, val);
+                    this.signalChangeProperty(prop, val, this.getPrevious(prop));
                 }
                 return this;
             }.overloadSetter(),
@@ -171,8 +184,8 @@
                 !this.isSilent() && this.fireEvent("change");
                 return this;
             },
-            signalChangeProperty: function(prop, val) {
-                !this.isSilent() && this.fireEvent("change:" + prop, [ prop, val ]);
+            signalChangeProperty: function(prop, newVal, oldVal) {
+                !this.isSilent() && this.fireEvent("change:" + prop, [ prop, newVal, oldVal ]);
                 return this;
             },
             signalDestroy: function() {
@@ -197,14 +210,26 @@
                 delete this._accessors[key];
                 this._accessors[key] = undefined;
                 return this;
-            }
+            },
+            spy: function(prop, callback) {
+                if (typeOf(prop) == "string" && prop in this._data && typeOf(callback) == "function") {
+                    this.addEvent("change:" + prop, callback);
+                }
+                return this;
+            }.overloadSetter(),
+            unspy: function(prop, callback) {
+                if (typeOf(prop) == "string" && prop in this._data) {
+                    this.addEvent("change:" + prop, callback);
+                }
+                return this;
+            }.overloadSetter()
         });
         [ "subset", "map", "filter", "every", "some", "keys", "values", "getLength", "keyOf", "contains", "toQueryString" ].each(function(method) {
             Model.implement(method, function() {
                 return Object[method].apply(Object, [ this._data ].append(Array.from(arguments)));
             });
         });
-        module.exports = Model;
+        exports.Model = Model;
     },
     "4": function(require, module, exports, global) {
         (function(context) {
@@ -318,30 +343,107 @@
     },
     "5": function(require, module, exports, global) {
         var Silence = new Class({
-            _silent: false,
-            silence: function(silent) {
-                this._silent = !!silent;
+            _silent: 0,
+            silence: function(fnc) {
+                this._silent++;
+                fnc();
+                this._silent--;
                 return this;
             },
             isSilent: function() {
                 return !!this._silent;
             }
         });
-        exports = module.exports = Silence;
+        exports.Silence = Silence;
     },
     "6": function(require, module, exports, global) {
-        var Model = require("3"), Silence = require("5");
+        var uid = String.uniqueID(), $boundFnStr = uid + "_$boundFn";
+        var isBound = function(fn) {
+            return fn && typeOf(fn[$boundFnStr]) == "function";
+        };
+        var bindFn = function(fn, to) {
+            if (!isBound(fn) && typeOf(fn) == "function") {
+                fn[$boundFnStr] = fn.bind(to);
+            }
+            return fn;
+        };
+        var getBoundFn = function(fn) {
+            return fn[$boundFnStr];
+        };
+        var processFn = function(type, evt, fn, obj) {
+            if (type == "string") {
+                fn = obj[fn];
+                if (typeOf(fn) == "function") {
+                    if (!isBound(fn)) {
+                        bindFn(fn, obj);
+                    }
+                    fn = getBoundFn(fn);
+                }
+            }
+            return fn;
+        };
+        var mapSubEvents = function(obj, baseEvt) {
+            var map = {};
+            Object.each(obj, function(val, key) {
+                if (key == "*") {
+                    key = baseEvt;
+                } else {
+                    key = baseEvt + ":" + key;
+                }
+                map[key] = val;
+            });
+            return map;
+        };
+        var process = function(methodStr, map, obj) {
+            Object.each(map, function(methods, evt) {
+                methods = Array.from(methods);
+                methods.each(function(method) {
+                    var type = typeOf(method);
+                    switch (type) {
+                      case "object":
+                        if (!instanceOf(method, Class)) {
+                            process.call(this, methodStr, mapSubEvents(method, evt), obj);
+                        }
+                        break;
+                      case "string":
+                      case "function":
+                        method = processFn.call(this, type, evt, method, obj);
+                        method && this[methodStr](evt, method);
+                        break;
+                    }
+                }, this);
+            }, this);
+        };
+        var curryConnection = function(str) {
+            var methodStr = str == "connect" ? "addEvent" : "removeEvent";
+            return function(obj, hasConnected) {
+                if (obj && typeOf(obj[str]) == "function") {
+                    var map = this.options.connector;
+                    process.call(this, methodStr, map, obj);
+                    !hasConnected && obj[str](this, true);
+                }
+                return this;
+            };
+        };
+        var Connector = new Class({
+            connect: curryConnection("connect"),
+            disconnect: curryConnection("disconnect")
+        });
+        exports.Connector = Connector;
+    },
+    "7": function(require, module, exports, global) {
+        var Model = require("3").Model, Silence = require("5").Silence, Connector = require("6").Connector;
         var Collection = new Class({
-            Implements: [ Events, Options, Silence ],
+            Implements: [ Connector, Events, Options, Silence ],
             _models: [],
             _bound: {},
             _Model: Model,
+            length: 0,
             primaryKey: undefined,
             options: {
                 primaryKey: undefined,
                 Model: undefined,
-                modelOptions: undefined,
-                silent: false
+                modelOptions: undefined
             },
             initialize: function(models, options) {
                 this.setup(models, options);
@@ -355,7 +457,6 @@
                 if (this.options.Model) {
                     this._Model = this.options.Model;
                 }
-                this.silence(this.options.silent);
                 if (models) {
                     this.add(models);
                 }
@@ -377,6 +478,7 @@
                 if (!this.hasModel(model)) {
                     model.addEvent("destroy", this._bound.remove);
                     this._models.push(model);
+                    this.length = this._models.length;
                     this.signalAdd(model);
                 }
                 return this;
@@ -403,6 +505,7 @@
             _remove: function(model) {
                 model.removeEvent("destroy", this._bound.remove);
                 this._models.erase(model);
+                this.length = this._models.length;
                 this.signalRemove(model);
                 return this;
             },
@@ -429,6 +532,16 @@
                 }
                 return this;
             },
+            sort: function(fnc) {
+                this._models.sort(fnc);
+                this.signalSort();
+                return this;
+            },
+            reverse: function() {
+                this._models.reverse();
+                this.signalSort();
+                return this;
+            },
             empty: function() {
                 this.remove(this._models);
                 this.signalEmpty();
@@ -446,6 +559,10 @@
                 !this.isSilent() && this.fireEvent("empty");
                 return this;
             },
+            signalSort: function() {
+                !this.isSilent() && this.fireEvent("sort");
+                return this;
+            },
             toJSON: function() {
                 return this.map(function(model) {
                     return model.toJSON();
@@ -457,10 +574,10 @@
                 return Array.prototype[method].apply(this._models, arguments);
             });
         });
-        module.exports = Collection;
+        exports.Collection = Collection;
     },
-    "7": function(require, module, exports, global) {
-        var Unit = require("8").Unit;
+    "8": function(require, module, exports, global) {
+        var Unit = require("9").Unit;
         var resolvePrefix = function(obj, key) {
             var prefix = obj && obj.getPrefix && obj.getPrefix();
             return (!!prefix ? prefix + "." : "") + key;
@@ -494,9 +611,9 @@
             }
         });
         Observer.extend(Unit);
-        module.exports = Observer;
+        exports.Observer = Observer;
     },
-    "8": function(require, module, exports, global) {
+    "9": function(require, module, exports, global) {
         (function() {
             var removeOnRegexp = /^on([A-Z])/, removeOnFn = function(_, ch) {
                 return ch.toLowerCase();
@@ -910,11 +1027,10 @@
             };
         }).call(this);
     },
-    "9": function(require, module, exports, global) {
-        var Neuro = require("1");
-        var Observer = require("7"), Mixins = require("a");
+    a: function(require, module, exports, global) {
+        var modelObj = require("3"), Observer = require("8").Observer, Mixins = require("b");
         var Model = new Class({
-            Extends: Neuro.Model,
+            Extends: modelObj.Model,
             Implements: [ Mixins.observer ],
             options: {
                 Prefix: ""
@@ -927,10 +1043,10 @@
                 return this;
             }
         });
-        module.exports = Model;
+        modelObj.Model = exports.Model = Model;
     },
-    a: function(require, module, exports, global) {
-        var Observer = require("7");
+    b: function(require, module, exports, global) {
+        var Observer = require("8").Observer;
         var fn = function() {
             var args = Array.from(arguments);
             args.push(this);
@@ -943,15 +1059,14 @@
             unsubscribe: fn
         });
     },
-    b: function(require, module, exports, global) {
-        var Neuro = require("1");
-        var Observer = require("7"), Mixins = require("a");
+    c: function(require, module, exports, global) {
+        var collectionObj = require("7"), Model = require("3").Model, Observer = require("8").Observer, Mixins = require("b");
         var Collection = new Class({
-            Extends: Neuro.Collection,
+            Extends: collectionObj.Collection,
             Implements: [ Mixins.observer ],
             options: {
                 Prefix: "",
-                Model: Neuro.Model
+                Model: Model
             },
             setup: function(models, options) {
                 this.setPrefix(options && options.Prefix || this.options.Prefix);
@@ -961,6 +1076,6 @@
                 return this;
             }
         });
-        module.exports = Collection;
+        collectionObj.Collection = exports.Collection = Collection;
     }
 });
