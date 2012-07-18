@@ -1,10 +1,9 @@
-var Neuro = require('Neuro');
-
-var Observer = require('./observer'),
+var modelObj = require('Neuro/src/Model'),
+    Observer = require('./observer').Observer,
     Mixins = require('../mixins/observer');
 
 var Model = new Class({
-    Extends: Neuro.Model,
+    Extends: modelObj.Model,
 
     Implements: [Mixins.observer],
 
@@ -30,4 +29,4 @@ var Model = new Class({
     }
 });
 
-module.exports = Model;
+modelObj.Model = exports.Model = Model;

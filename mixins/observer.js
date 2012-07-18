@@ -1,4 +1,4 @@
-var Observer = require('../src/observer');
+var Observer = require('../src/observer').Observer;
 
 var fn = function(){
     var args = Array.from(arguments);

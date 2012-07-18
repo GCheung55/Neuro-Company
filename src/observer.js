@@ -48,4 +48,4 @@ var Observer = new Class({
 
 Observer.extend(Unit);
 
-module.exports = Observer;
+exports.Observer = Observer;

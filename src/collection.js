@@ -1,16 +1,16 @@
-var Neuro = require('Neuro');
-
-var Observer = require('./observer'),
+var collectionObj = require('Neuro/src/Collection'),
+    Model = require('Neuro/src/Model').Model,
+    Observer = require('./observer').Observer,
     Mixins = require('../mixins/observer');
 
 var Collection = new Class({
-    Extends: Neuro.Collection,
+    Extends: collectionObj.Collection,
 
     Implements: [Mixins.observer],
 
     options: {
         Prefix: '',
-        Model: Neuro.Model
+        Model: Model
     },
 
     setup: function(models, options){
@@ -26,4 +26,4 @@ var Collection = new Class({
     }
 });
 
-module.exports = Collection;
+collectionObj.Collection = exports.Collection = Collection;
