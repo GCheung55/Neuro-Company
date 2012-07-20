@@ -24,7 +24,7 @@ buster.testCase('Neuro Collection', {
             assert.equals(model.getData(), this.mockData);
 
             assert.called(spy),
-            assert.calledWith(spy, model);
+            assert.calledWith(spy, this.mockCollection, model);
         },
 
         'should notify subscribers of models removed': function(){
@@ -40,23 +40,24 @@ buster.testCase('Neuro Collection', {
             this.mockCollection.remove(model);
 
             assert.called(spy);
-            assert.calledWith(spy, model);
+            assert.calledWith(spy, this.mockCollection, model);
         },
 
         'should notify subscribers emptying Collection instance': function(){
             var spy = this.spy(),
+                collection = this.mockCollection,
                 unit = new Neuro.Observer().subscribe(this.mockPrefix + '.empty', spy),
                 model;
 
-            this.mockCollection.setPrefix(this.mockPrefix).add(this.mockData);
-            model = this.mockCollection.get(0);
+            collection.setPrefix(this.mockPrefix).add(this.mockData);
+            model = collection.get(0);
             // make sure the model has the correct data
             assert.equals(model.getData(), this.mockData);
 
-            this.mockCollection.empty();
+            collection.empty();
 
             assert.called(spy);
-            refute(this.mockCollection._models.length);
+            refute(collection.length);
         },
 
         'should automatically use the the prefix when subscribing': function(){
@@ -76,9 +77,9 @@ buster.testCase('Neuro Collection', {
             model = collection.get(0);
 
             assert.called(collectionSpy);
-            assert.calledWith(collectionSpy, model);
+            assert.calledWith(collectionSpy, collection, model);
             assert.called(unitSpy);
-            assert.calledWith(unitSpy, model);
+            assert.calledWith(unitSpy, collection, model);
         }
     }
 });

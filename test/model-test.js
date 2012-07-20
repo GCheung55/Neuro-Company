@@ -10,15 +10,16 @@ buster.testCase('Neuro Model', {
                                 first = names[0],
                                 last = names[1];
 
+                            // this.set({'firstName': first, 'lastName': last});
                             this.set('firstName', first);
                             this.set('lastName', last);
-                            return val;
                         }
+
+                        return val;
                     },
                     get: function(isPrevious){
-                        var data = isPrevious ? this._data : this._previousData;
-
-                        return data['fullName'];
+                        var method = isPrevious ? 'getPrevious' : 'get';
+                        return this[method]('firstName') + ' ' + this[method]('lastName');
                     }
                 }
             }
@@ -29,7 +30,6 @@ buster.testCase('Neuro Model', {
         this.mockData = {
             'firstName': 'Garrick',
             'lastName': 'Cheung',
-            'fullName': 'Garrick Cheung',
             'age': 29
         };
 
@@ -70,20 +70,7 @@ buster.testCase('Neuro Model', {
             model.setPrefix(this.mockPrefix).set(key, val);
 
             assert.called(spy);
-            assert.calledWith(spy, key, val);
-        },
-
-        'use of custom accessors should notify subscribers of changed data property': function(){
-            var key = 'fullName',
-                val = 'Mark Obcena',
-                spy = this.spy(),
-                unit = new Neuro.Observer().subscribe(this.mockPrefix + '.change:' + key, spy),
-                model = this.mockModelWithData;
-
-            model.setPrefix(this.mockPrefix).set(key, val);
-
-            assert.called(spy);
-            assert.calledWith(spy, key, val);
+            assert.calledWith(spy, model, key, val, 29);
         },
 
         'should automatically use the the prefix when subscribing': function(){
