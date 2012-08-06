@@ -1,4 +1,4 @@
-var modelObj = require('Neuro/src/Model'),
+var modelObj = require('Neuro/src/model/main'),
     Observer = require('./observer').Observer,
     Mixins = require('../mixins/observer');
 
@@ -12,8 +12,6 @@ var Model = new Class({
     },
 
     setup: function(data, options){
-        this.parent(data, options);
-
         // a unique prefix should always be set
         this.setPrefix(this.options.Prefix || String.uniqueID());
 
@@ -24,6 +22,8 @@ var Model = new Class({
          * Observer subscribe/unsubscribe/publish methods
          */
         Observer.decorate(this);
+
+        this.parent(data, options);
 
         return this;
     }

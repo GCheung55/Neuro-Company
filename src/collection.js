@@ -1,5 +1,5 @@
-var collectionObj = require('Neuro/src/Collection'),
-    Model = require('Neuro/src/Model').Model,
+var collectionObj = require('Neuro/src/collection/main'),
+    Model = require('Neuro/src/model/main').Model,
     Observer = require('./observer').Observer,
     Mixins = require('../mixins/observer');
 
@@ -14,7 +14,7 @@ var Collection = new Class({
     },
 
     setup: function(models, options){
-        this.setPrefix( (options && options.Prefix) || this.options.Prefix);
+        this.setPrefix(this.options.Prefix);
 
         this.setupUnit();
 
