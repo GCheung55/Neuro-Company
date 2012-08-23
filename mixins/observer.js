@@ -1,9 +1,9 @@
 var Observer = require('../src/observer').Observer;
 
 var fn = function(){
-    var args = Array.from(arguments);
-    args.push(this);
-    this.parent.apply(this, args);
+    Array.prototype.push.call(arguments, this);
+
+    this.parent.apply(this, arguments);
 
     return this;
 };
