@@ -10,7 +10,9 @@ var Collection = new Class({
 
     options: {
         Prefix: '',
-        Model: Model
+        Model: {
+            constructor: Model
+        }
     },
 
     setup: function(models, options){
