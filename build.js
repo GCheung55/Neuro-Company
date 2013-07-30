@@ -1,17 +1,17 @@
 var fs = require('fs')
-,   wrup = require('wrapup')()
+,   wrup = require('wrapup')
 ,   root = __dirname + '/';
 
 // Write the neuro.js file
 
-var neuro = wrup.require('Neuro', './')
-,   src = neuro.up()
-,   compressed = neuro.up({compress: true});
+var src = wrup().require('Neuro', './').up(function(err, js){
+    fs.writeFile(root + 'neuro-company.js', js);
+});
 
-var writeNeuro = function(){
-    fs.writeFile(root + 'neuro-company.js', src);
-    fs.writeFile(root + 'neuro-company-min.js', compressed);
-    console.log('Neuro-Company created.');
-};
+var compressed = wrup().require('Neuro', './').options({
+    compress: true
+}).up(function(err, js){
+    fs.writeFile(root + 'neuro-company-min.js', js);
+});
 
-writeNeuro();
+console.log('Neuro-Company created.');

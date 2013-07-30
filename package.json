@@ -2,7 +2,7 @@
   "author": "Garrick Cheung <garrick@garrickcheung.com>",
   "name": "Neuro-Company",
   "description": "An extension of Neuro to provide an observer component.",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "main": "src/main.js",
   "dependencies": {
       "Neuro": "*",
